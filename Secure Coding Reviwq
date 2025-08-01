@@ -1,0 +1,57 @@
+import argparse
+import logging
+import os
+from scapy.utils import PcapReader
+from scapy.layers.inet import IP, TCP, UDP
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+# Max packets to read per file
+CHUNK_SIZE = 500000
+
+def extract_unique_dst_ports(pcap_path):
+    """Extracts unique destination ports from a PCAP file."""
+    unique_ports = set()
+
+    if not os.path.isfile(pcap_path):
+        logging.error(f"File does not exist: {pcap_path}")
+        return unique_ports
+
+    try:
+        with PcapReader(pcap_path) as packets:
+            for i, pkt in enumerate(packets):
+                if i >= CHUNK_SIZE:
+                    break
+                if IP in pkt and (TCP in pkt or UDP in pkt):
+                    dst_port = pkt[TCP].dport if TCP in pkt else pkt[UDP].dport
+                    unique_ports.add(dst_port)
+    except Exception as e:
+        logging.error(f"Failed to read or process file '{pcap_path}': {e}")
+
+    return unique_ports
+
+def main():
+    # Argument parsing
+    parser = argparse.ArgumentParser(description="Extract unique destination ports from two PCAP files.")
+    parser.add_argument("--pcap1", required=True, help="Path to the first PCAP file")
+    parser.add_argument("--pcap2", required=True, help="Path to the second PCAP file")
+    args = parser.parse_args()
+
+    # Process both PCAP files
+    logging.info(f"Processing file: {args.pcap1}")
+    ports_1 = extract_unique_dst_ports(args.pcap1)
+    logging.info(f"Processing file: {args.pcap2}")
+    ports_2 = extract_unique_dst_ports(args.pcap2)
+
+    # Display results
+    print(f"\nDataset 1: {args.pcap1}")
+    print(f"  Total Unique Destination Ports: {len(ports_1)}")
+    print(f"  List of Ports: {sorted(ports_1)}")
+
+    print(f"\nDataset 2: {args.pcap2}")
+    print(f"  Total Unique Destination Ports: {len(ports_2)}")
+    print(f"  List of Ports: {sorted(ports_2)}")
+
+if __name__ == "__main__":
+    main()
